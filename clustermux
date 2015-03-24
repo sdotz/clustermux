@@ -1,0 +1,99 @@
+#!/usr/bin/env ruby
+
+require 'yaml'
+require 'optparse'
+require 'ostruct'
+
+class Clustermux
+  DEFAULT_INVENTORY_PATH = './inventory.yaml'
+
+  def initialize
+    @options = OpenStruct.new
+    @options.stack = ''
+    @options.inventory_path = DEFAULT_INVENTORY_PATH
+    @options.ssh_user = nil
+
+    @cluster = []
+  end
+
+
+  def parse(args)
+    opts = OptionParser.new do |o|
+      o.banner = 'Usage: clustermux app[.env][.component]'
+
+      o.on('-i --inventory inventory.yaml', String, :REQUIRED, 'Specify an inventory YAML file') do |v|
+        unless v.nil?
+          @options.inventory_path = v
+        end
+      end
+
+      o.on('-s --stack papi.prd.cache', String, :REQUIRED, 'Specify a cluster of servers') do |v|
+        @options.stack = v
+      end
+
+      o.on('-u --user username', String, :REQUIRED, 'Username for ssh') do |v|
+        @options.ssh_user = v
+      end
+
+      o.on_tail("-h", "--help", "Show this message") do
+        puts o
+        exit
+      end
+    end
+    opts.parse!(args)
+    main
+  end
+
+  def main()
+    @cluster = get_cluster(@options.stack)
+    tmux(@cluster)
+  end
+
+  def tmux(hosts)
+    ssh_user = @options.ssh_user.nil? ? '' : @options.ssh_user + '@'
+    `tmux new-window -n "#{@options.stack}" "ssh #{ssh_user}#{hosts.shift}"`
+    hosts.each do |h|
+      `tmux splitw "ssh #{ssh_user}#{h}"`
+      `tmux select-layout tiled`
+    end
+
+    `tmux set-window-option synchronize-panes on`
+  end
+
+  def get_cluster(stack_identifier)
+
+    def find_at_path(obj, search)
+      mem = obj
+      search.each do |k|
+        if mem.respond_to?(:key?) && mem.key?(k)
+          mem = mem[k]
+        else
+          raise "could not traverse to node: #{k}"
+        end
+      end
+      return mem
+    end
+
+    def map_strings(enumerable, carry = [])
+      enumerable.each do |k, v|
+        if enumerable.kind_of?(Array)
+          carry << k
+        elsif v.respond_to?(:each)
+          carry = map_strings(v, carry)
+        end
+      end
+      return carry
+    end
+
+    stack_path = stack_identifier.split('.')
+    if File.exists?(@options.inventory_path)
+      inventory = YAML.load_file(@options.inventory_path)
+    else
+      raise "Could not open inventory file. Are you sure it is located at #{@options.inventory_path}"
+    end
+    deepest_node = find_at_path(inventory, stack_path)
+    retval = map_strings(deepest_node)
+  end
+end
+
+Clustermux.new.parse(ARGV)

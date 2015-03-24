@@ -1,0 +1,30 @@
+---
+myapp:
+  prd:
+    app:
+      - myapp-app01.prd.example.com
+      - myapp-app02.prd.example.com
+      - myapp-app03.prd.example.com
+      - myapp-app04.prd.example.com
+    cache:
+      - myapp-cache01.prd.example.com
+      - myapp-cache02.prd.example.com
+    db:
+      - myapp-db01.prd.example.com
+      - myapp-db02.prd.example.com
+  stg:
+    app:
+      - myapp-app01.stg.example.com
+      - myapp-app02.stg.example.com
+    cache:
+      - myapp-cache01.stg.example.com
+      - myapp-cache02.stg.example.com
+    db:
+      - myapp-db01.stg.example.com
+  dev:
+    app:
+      - myapp-app01.dev.example.com
+    cache:
+      - myapp-cache01.dev.example.com
+    db:
+      - myapp-db01.dev.example.com
